@@ -18,22 +18,88 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.emotionsense.data.EmotionEntry
 import com.example.emotionsense.data.detectEmotion
 import com.example.emotionsense.model.EmotionChart
+import com.example.emotionsense.ui.theme.EmotionSenseTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    speechRecognizer: SpeechRecognizer,
-    speechIntent: Intent
+    speechRecognizer: Any?, // Use Any? to avoid ClassNotFoundException: android.speech.SpeechRecognizer in Compose Preview
+    speechIntent: Intent?
 ) {
+    val recognizer = speechRecognizer as? SpeechRecognizer
     var spokenText by remember { mutableStateOf("") }
     var isListening by remember { mutableStateOf(false) }
     val emotionList = remember { mutableStateListOf<EmotionEntry>() }
-    val scrollState = rememberScrollState()
     var recordingTimestamp by remember { mutableStateOf<Long?>(null) }
+
+    HomeScreenContent(
+        spokenText = spokenText,
+        isListening = isListening,
+        emotionList = emotionList,
+        onToggleListening = {
+            if (recognizer != null && speechIntent != null) {
+                if (!isListening) {
+                    isListening = true
+                    recognizer.setRecognitionListener(object : RecognitionListener {
+                        override fun onResults(results: Bundle?) {
+                            val data = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            spokenText = data?.firstOrNull() ?: ""
+                            recordingTimestamp = System.currentTimeMillis()
+                            isListening = false
+                        }
+
+                        override fun onPartialResults(partialResults: Bundle?) {
+                            val data = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            spokenText = data?.firstOrNull() ?: ""
+                        }
+
+                        override fun onReadyForSpeech(params: Bundle?) {}
+                        override fun onBeginningOfSpeech() {
+                            recordingTimestamp = System.currentTimeMillis()
+                        }
+                        override fun onRmsChanged(rmsdB: Float) {}
+                        override fun onBufferReceived(buffer: ByteArray?) {}
+                        override fun onEndOfSpeech() { isListening = false }
+                        override fun onError(error: Int) {
+                            Log.e("SpeechRecognizer", "Error: $error")
+                            isListening = false
+                        }
+                        override fun onEvent(eventType: Int, params: Bundle?) {}
+                    })
+                    recognizer.startListening(speechIntent)
+                } else {
+                    recognizer.stopListening()
+                    isListening = false
+                }
+            }
+        },
+        onAnalyze = {
+            if (spokenText.isNotEmpty()) {
+                val timestamp = recordingTimestamp ?: System.currentTimeMillis()
+                val emotion = detectEmotion(spokenText)
+                emotionList.add(0, EmotionEntry(emotion, timestamp))
+                // Reset spoken text after analysis
+                spokenText = ""
+                recordingTimestamp = null
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenContent(
+    spokenText: String,
+    isListening: Boolean,
+    emotionList: List<EmotionEntry>,
+    onToggleListening: () -> Unit,
+    onAnalyze: () -> Unit
+) {
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
@@ -88,41 +154,7 @@ fun HomeScreen(
             ) {
                 Button(
                     modifier = Modifier.weight(1f),
-                    onClick = {
-                        if (!isListening) {
-                            isListening = true
-                            speechRecognizer.setRecognitionListener(object : RecognitionListener {
-                                override fun onResults(results: Bundle?) {
-                                    val data = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                                    spokenText = data?.firstOrNull() ?: ""
-                                    recordingTimestamp = System.currentTimeMillis()
-                                    isListening = false
-                                }
-
-                                override fun onPartialResults(partialResults: Bundle?) {
-                                    val data = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                                    spokenText = data?.firstOrNull() ?: ""
-                                }
-
-                                override fun onReadyForSpeech(params: Bundle?) {}
-                                override fun onBeginningOfSpeech() {
-                                    recordingTimestamp = System.currentTimeMillis()
-                                }
-                                override fun onRmsChanged(rmsdB: Float) {}
-                                override fun onBufferReceived(buffer: ByteArray?) {}
-                                override fun onEndOfSpeech() { isListening = false }
-                                override fun onError(error: Int) {
-                                    Log.e("SpeechRecognizer", "Error: $error")
-                                    isListening = false
-                                }
-                                override fun onEvent(eventType: Int, params: Bundle?) {}
-                            })
-                            speechRecognizer.startListening(speechIntent)
-                        } else {
-                            speechRecognizer.stopListening()
-                            isListening = false
-                        }
-                    },
+                    onClick = onToggleListening,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isListening) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
@@ -137,16 +169,7 @@ fun HomeScreen(
 
                 ElevatedButton(
                     modifier = Modifier.weight(1f),
-                    onClick = {
-                        if (spokenText.isNotEmpty()) {
-                            val timestamp = recordingTimestamp ?: System.currentTimeMillis()
-                            val emotion = detectEmotion(spokenText)
-                            emotionList.add(0, EmotionEntry(emotion, timestamp))
-                            // Reset spoken text after analysis
-                            spokenText = ""
-                            recordingTimestamp = null
-                        }
-                    },
+                    onClick = onAnalyze,
                     enabled = spokenText.isNotEmpty()
                 ) {
                     Icon(Icons.Default.Analytics, contentDescription = null)
@@ -177,5 +200,22 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    EmotionSenseTheme {
+        HomeScreenContent(
+            spokenText = "I am feeling very happy today!",
+            isListening = false,
+            emotionList = listOf(
+                EmotionEntry("Happy", System.currentTimeMillis()),
+                EmotionEntry("Neutral", System.currentTimeMillis() - 60000)
+            ),
+            onToggleListening = {},
+            onAnalyze = {}
+        )
     }
 }

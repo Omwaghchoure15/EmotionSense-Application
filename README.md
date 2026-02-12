@@ -1,12 +1,9 @@
-#  EmotionSense
-
 EmotionSense is an Android application that captures voice input, analyzes emotional sentiment, and visualizes emotion trends over time.
 
 Built using **Kotlin** and **Jetpack Compose**.
 
 ---
 
-## 🚀 Features
 
 - 🎤 Voice input using Android SpeechRecognizer  
 - 🧠 Real-time emotion detection (rule-based sentiment analysis)  
@@ -17,7 +14,6 @@ Built using **Kotlin** and **Jetpack Compose**.
 
 ---
 
-## 🏗️ Tech Stack
 
 - Kotlin
 - Jetpack Compose
@@ -27,7 +23,6 @@ Built using **Kotlin** and **Jetpack Compose**.
 
 ---
 
-## 🧠 How It Works
 
 1. User records voice input.
 2. SpeechRecognizer converts speech to text.
@@ -39,7 +34,6 @@ Built using **Kotlin** and **Jetpack Compose**.
 
 ---
 
-## 🧪 Emotion Detection Logic
 
 The current implementation uses a simple rule-based classification:
 
@@ -55,7 +49,6 @@ This architecture allows future integration with:
 
 ---
 
-## 📊 Output Example
 
 - Emotion Summary:
   - HAPPY: 2
@@ -69,7 +62,6 @@ This architecture allows future integration with:
 
 ---
 
-## 🔮 Future Improvements
 
 - Integrate ML-based sentiment model
 - Persist emotion history using Room Database
@@ -79,7 +71,6 @@ This architecture allows future integration with:
 
 ---
 
-## 📦 APK
 
 The release APK is included for installation and testing.
 
